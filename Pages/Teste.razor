@@ -1,0 +1,142 @@
+﻿@page "/teste"
+@using Microsoft.Data.Sqlite
+@using LLM.Document.Response.Services
+
+<h3>Teste</h3>
+
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment _environment
+
+@code {
+    [Inject] LangChainService LangChainService { get; set; }
+    public List<TesteArquivo> Lista { get; set; } = new();
+    public Dictionary<string, string> VariaveisAmbiente { get; set; } = new Dictionary<string, string>();
+    protected override void OnInitialized()
+    {
+        var variaveis = Environment.GetEnvironmentVariables();
+        string dbName = "vectors.db";
+
+        string basePath = AppDomain.CurrentDomain.BaseDirectory;
+        string wwwrootAzurePath = Path.Combine(basePath, "wwwroot");
+        string wwwrootAspNetPath = Path.Combine(wwwrootAzurePath, "wwwroot");
+        Lista = new List<TesteArquivo>()
+        {
+            new TesteArquivo("Path.Combine(IWebHostEnvironment.ContentRootPath, dbName)", Path.Combine(_environment.ContentRootPath, dbName)),
+            new TesteArquivo("Path.Combine(IWebHostEnvironment.WebRootPath, dbName)", Path.Combine(_environment.WebRootPath, dbName)),
+            new TesteArquivo("Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dbName)", Path.Combine(basePath, dbName)),
+            new TesteArquivo("Path.Combine(wwwrootAzurePath, dbName)", Path.Combine(wwwrootAzurePath, dbName)),
+            new TesteArquivo("Path.Combine(wwwrootAspNetPath, dbName)", Path.Combine(wwwrootAspNetPath, dbName)),
+        };
+
+        if (variaveis.Contains("SQLITE_LOCATION") && variaveis["SQLITE_LOCATION"] is string SQLITE_LOCATION)
+        {
+            Lista.Add(new TesteArquivo("Path.Combine(SQLITE_LOCATION, dbName)", Path.Combine(SQLITE_LOCATION, dbName)));
+        }
+
+        foreach (var item in Lista)
+        {
+            item.Found = System.IO.File.Exists(item.Path);
+        }
+
+        string dbConnectionString = LangChainService.GetDatabasePath();
+
+        try
+        {
+            using (SqliteConnection source = new SqliteConnection($"Data Source = {dbConnectionString}"))
+            {
+                source.Open();
+                var queryCommand = source.CreateCommand();
+                queryCommand.CommandText = """SELECT * FROM vectors LIMIT 1""";
+                var value = queryCommand.ExecuteScalar();
+
+                if (value != null)
+                {
+                    Lista.Add(new TesteArquivo("SELECT TOP 1 * FROM vectors", value.ToString()));
+                }
+                else
+                {
+                    Lista.Add(new TesteArquivo("SELECT TOP 1 * FROM vectors", "result from select is null"));
+                }
+            }
+        }
+        catch (Exception erro)
+        {
+            Lista.Add(new TesteArquivo("SELECT TOP 1 * FROM vectors", erro.Message));
+        }
+
+
+        foreach (var key in variaveis.Keys)
+        {
+            var value = variaveis[key];
+
+            VariaveisAmbiente[key.ToString()] = value.ToString();
+        }
+
+        base.OnInitialized();
+    }
+
+    public class TesteArquivo
+    {
+        public TesteArquivo(string method, string path)
+        {
+            Method = method;
+            Path = path;
+        }
+        public string Method { get; internal set; }
+        public string Path { get; internal set; }
+        public bool? Found { get; set; }
+    }
+}
+
+<div class="mb-3">
+    <table class="table table-sm table-striped table-bordered m-0">
+        <thead>
+            <tr>
+                <th scope="col" class="text-right">Método</th>
+                <th scope="col" class="text-right">Valor</th>
+                <th scope="col" class="text-left">Encontrado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Lista)
+            {
+                <tr>
+                    <td class="text-right align-items-center">
+                        @item.Method
+                    </td>
+                    <td class="text-right align-items-center">
+                        @item.Path
+                    </td>
+                    <td class="text-left">
+                        @item.Found
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped table-bordered">
+        <thead>
+            <tr>
+                <th scope="col" class="text-right">Chave</th>
+                <th scope="col" class="text-left">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in VariaveisAmbiente)
+            {
+                <tr>
+                    <td class="text-right">
+                        @item.Key
+                    </td>
+                    <td class="text-justify">
+                        <span class="d-block" style="max-width: 50vw !important;">
+                            @item.Value
+                        </span>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

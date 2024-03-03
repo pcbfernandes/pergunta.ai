@@ -1,0 +1,141 @@
+﻿@page "/"
+
+@using LLM.Document.Response.Model
+@inherits IndexBase
+
+<PageTitle>LabiAPS - Pergunta.aí</PageTitle>
+
+<style>
+    .prompt-suggestion-item {
+        cursor: pointer;
+        border: 1px solid #eaeaea;
+        border-radius: 24px;
+        margin: 5px 20px;
+        padding: 0.5rem;
+        transition: transform 0.2s;
+        max-width: 80%;
+    }
+
+        .prompt-suggestion-item:hover {
+            transform: scale(1.05)
+        }
+
+
+    .resizable {
+        width: 700px;
+        min-width: 300px;
+        resize: horizontal;
+        overflow: auto;
+    }
+</style>
+
+<div class="container-fluid d-sm-flex flex-row mt-2 justify-content-center">
+    <div class="d-flex flex-column" style="width:200px">
+        <div class="p-2"><img src="pergunta.ai.jpg" width="200" /></div>
+        <div class="p-2">Protótipo desenvolvido para a HACKATONA-DF. Nesta demonstração, foram utilizados dados públicos relacionados à área da saúde, os quais foram indexados em uma amostra reduzida, exclusivamente para fins de simulação e teste.</div>
+        <div class="p-2"><b>Este protótipo não representa uma base de dados completa, mas sim uma representação simplificada para fins de demonstração durante o evento.</b></div>
+    </div>
+    <div>
+        <div class="resizable border">
+            <TelerikAIPrompt @ref="@AIPromptRef"
+                             @bind-Prompt="@Prompt"
+                             PromptSuggestions="@PromptSuggestions">
+                <AIPromptViews>
+                    <AIPromptPromptView ButtonText="Pergunta" ButtonIcon="@SvgIcon.Sparkles">
+                        <ViewTemplate>
+                            <div class="k-prompt-view">
+                                <TelerikTextBox @bind-Value="@Prompt" Placeholder="Insira sua pergunta">
+                                </TelerikTextBox>
+                            </div>
+                            <div>
+                                <div class="float-end">
+                                    <TelerikButton OnClick="@HandleCustomPromptRequest"
+                                                   Enabled="@(!IsBusy)"
+                                                   ThemeColor="@ThemeConstants.Button.ThemeColor.Primary">
+                                        @if (IsBusy)
+                                        {
+                                            <TelerikLoader ThemeColor="@ThemeConstants.Loader.ThemeColor.Light"></TelerikLoader>
+                                            <span>Processando....</span>
+                                        }
+                                        else
+                                        {
+                                            <TelerikSvgIcon Icon="@SvgIcon.PaperPlane"></TelerikSvgIcon>
+                                            <span>Enviar</span>
+                                        }
+                                    </TelerikButton>
+                                </div>
+                            </div>
+                        </ViewTemplate>
+                        <FooterTemplate>
+                            @if (PromptSuggestions?.Count > 0)
+                            {
+                                <div class="justify-content-center d-flex mt-3">
+                                    <div class="row w-75">
+                                        <span class="small">Sugestões de Pergutas:</span>
+                                        @foreach (var item in PromptSuggestions)
+                                        {
+                                            <p class="prompt-suggestion-item" @onclick="@(() => SetPromptSuggestion(item))">@item</p>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(ErrorMessage))
+                            {
+                                <div class="justify-content-center d-flex mt-3">
+                                    <div class="alert alert-danger w-75 text-center" style="overflow-wrap: break-word;">
+                                        @(new MarkupString(ErrorMessage))
+                                    </div>
+                                </div>
+                            }
+                        </FooterTemplate>
+                    </AIPromptPromptView>
+                    <AIPromptOutputView ButtonText="Respostas" ButtonIcon="@SvgIcon.Comment">
+                        <ViewTemplate>
+                            <div>
+                                @{
+                                    foreach (var item in QuestionList)
+                                    {
+                                        <div class="card border border-primary mb-4">
+                                            <div class="card-header">
+                                                <div class="row">
+                                                    <div class="col">
+                                                        <strong>@item.Question</strong>
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        <div class="small w-100 text-end mt-1">
+                                                            <i class="small">@($"{item.CreationDate:HH:mm:ss}")</i>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @if (item.AnswerModel != null)
+                                            {
+                                                <div class="card-body">
+                                                    <span>@item.AnswerModel.Answer</span>
+                                                </div>
+                                                <div class="card-footer bg-white py-1">
+                                                    <div class="small w-100 text-end mt-1">
+                                                        <span title="@item.AnswerModel.Info" style="cursor: help;">
+                                                            <TelerikSvgIcon Icon="@SvgIcon.InfoCircle"></TelerikSvgIcon>
+                                                        </span>
+                                                        <i class="small">@($"{item.AnswerModel.CreationDate:HH:mm:ss}")</i>
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="card-body">
+                                                    <i class="small">Processando...</i>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </ViewTemplate>
+                    </AIPromptOutputView>
+                </AIPromptViews>
+            </TelerikAIPrompt>
+        </div>
+    </div>
+</div>
